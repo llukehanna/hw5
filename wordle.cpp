@@ -1,68 +1,71 @@
 #ifndef RECCHECK
 // For debugging
 #include <iostream>
-// For std::remove
-#include <algorithm> 
-#include <map>
-#include <set>
 #endif
 
 #include "wordle.h"
 #include "dict-eng.h"
+#include <vector>
+#include <string>
+#include <set>
+
 using namespace std;
 
-
-// Add prototypes of helper functions here
-
-// - results: set to collect valid words
-static void helper(const std::string& in,
-                   int pos,
-                   std::string& current,
-                   std::string floating,
-                   const std::set<std::string>& dict,
-                   std::set<std::string>& results)
-{
-    int n = in.size();
-    if (pos == n) {
-        // once fully built, only accept if all floating letters used
-        if (floating.empty() && dict.find(current) != dict.end()) {
-            results.insert(current);
-        }
-        return;
-    }
-
-    if (in[pos] != '-') {
-        // fixed letter, just advance
-        helper(in, pos + 1, current, floating, dict, results);
-    } else {
-        // try every letter 'a'..'z' in this blank
-        for (char c = 'a'; c <= 'z'; ++c) {
-            current[pos] = c;
-            // if this letter satisfies one of the floating ones, remove it
-            std::string nextFloating = floating;
-            auto it = nextFloating.find(c);
-            if (it != std::string::npos) {
-                nextFloating.erase(it, 1);
-            }
-            helper(in, pos + 1, current, nextFloating, dict, results);
-        }
-        // restore (not strictly necessary since next call will overwrite)
-        current[pos] = '-';
-    }
-}
-
-
-// Definition of primary wordle function
 std::set<std::string> wordle(
     const std::string& in,
     const std::string& floating,
     const std::set<std::string>& dict)
 {
-    // Add your code here
-  std::set<std::string> results;
-      std::string current = in;     // start with the pattern
-      helper(in, 0, current, floating, dict, results);
-      return results;
-}
+    std::set<std::string> results;
+    size_t n = in.size();
 
-// Define any helper functions here
+    // Build frequency of floating letters
+    vector<int> floatFreq(26, 0);
+    for (char c : floating) {
+        if (c >= 'a' && c <= 'z')
+            floatFreq[c - 'a']++;
+    }
+
+    // Iterate through dictionary once
+    for (const auto& w : dict) {
+        // only consider words of correct length
+        if (w.size() != n) continue;
+        // skip any word with non-lowercase letters
+        bool allLower = true;
+        for (char c : w) {
+            if (c < 'a' || c > 'z') {
+                allLower = false;
+                break;
+            }
+        }
+        if (!allLower) continue;
+
+        bool match = true;
+        // Check fixed positions
+        for (size_t i = 0; i < n; ++i) {
+            if (in[i] != '-' && in[i] != w[i]) {
+                match = false;
+                break;
+            }
+        }
+        if (!match) continue;
+
+        // Count letters in candidate word
+        vector<int> wordFreq(26, 0);
+        for (char c : w) {
+            wordFreq[c - 'a']++;
+        }
+        // Ensure we have all floating letters
+        for (int letter = 0; letter < 26; ++letter) {
+            if (wordFreq[letter] < floatFreq[letter]) {
+                match = false;
+                break;
+            }
+        }
+        if (!match) continue;
+
+        results.insert(w);
+    }
+
+    return results;
+}
