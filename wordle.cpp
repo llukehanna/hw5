@@ -1,66 +1,52 @@
 #ifndef RECCHECK
+// no debug includes here
 #endif
 
 #include "wordle.h"
 #include "dict-eng.h"
+
 #include <string>
 #include <set>
-#include <vector>
 
 using namespace std;
 
-// Recursively check if a word w matches fixed pattern 'in' and is lowercase
-static bool matchesFixed(const string& w, const string& in, size_t pos) {
-    if (pos == in.size()) return true;
-    char c = w[pos];
-    if (c < 'a' || c > 'z') return false;
-    if (in[pos] != '-' && in[pos] != c) return false;
-    return matchesFixed(w, in, pos + 1);
-}
-
-// Recursively filter dictionary into 'valid' words matching fixed pattern
-static void filterDict(set<string>::const_iterator it,
-                       set<string>::const_iterator end,
-                       const string& in,
-                       vector<string>& valid) {
-    if (it == end) return;
-    const string& w = *it;
-    if (w.size() == in.size() && matchesFixed(w, in, 0)) {
-        valid.push_back(w);
-    }
-    auto next = it; ++next;
-    filterDict(next, end, in, valid);
-}
-
-// Recursively scan valid words and insert those fulfilling floating constraints
-static void recValid(const vector<string>& valid,
-                     const string& floating,
-                     size_t idx,
-                     set<string>& results) {
-    if (idx == valid.size()) return;
-    const string& w = valid[idx];
-    if (hasAll(w, floating)) {
-        results.insert(w);
-    }
-    recValid(valid, floating, idx + 1, results);
-}(const vector<string>& valid,
-                     const string& floating,
-                     size_t idx,
-                     set<string>& results) {
-    if (idx == valid.size()) return;
-    const string& w = valid[idx];
-    if (hasAll(w, floating)) {
-        results.insert(w);
-    }
-    recValid(valid, floating, idx + 1, results);
+// Recursively check that `w` contains every letter in `need` (with multiplicity)
+static bool hasAll(const string& w, const string& need) {
+    if (need.empty()) return true;
+    char c = need[0];
+    size_t p = w.find(c);
+    if (p == string::npos) return false;
+    string w2 = w;
+    w2.erase(p, 1);
+    return hasAll(w2, need.substr(1));
 }
 
 set<string> wordle(const string& in,
                    const string& floating,
                    const set<string>& dict) {
-    vector<string> valid;
-    filterDict(dict.begin(), dict.end(), in, valid);
     set<string> results;
-    recValid(valid, floating, 0, results);
+    size_t n = in.size();
+
+    // 1) scan every dict word
+    for (auto it = dict.begin(); it != dict.end(); ++it) {     // loop 1
+        const string& w = *it;
+        if (w.size() != n) continue;
+
+        // 2) check fixed positions
+        bool ok = true;
+        for (size_t i = 0; i < n; ++i) {                        // loop 2
+            if (in[i] != '-' && w[i] != in[i]) {
+                ok = false;
+                break;
+            }
+        }
+        if (!ok) continue;
+
+        // 3) verify all floating letters (recursive, no loop)
+        if (!hasAll(w, floating)) continue;
+
+        results.insert(w);
+    }
+
     return results;
 }
