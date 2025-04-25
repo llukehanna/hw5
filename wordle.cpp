@@ -26,11 +26,11 @@ std::set<std::string> wordle(
             floatFreq[c - 'a']++;
     }
 
-    // Iterate through dictionary once
+    // Check each dictionary word once
     for (const auto& w : dict) {
-        // only consider words of correct length
+        // skip any word of wrong length
         if (w.size() != n) continue;
-        // skip any word with non-lowercase letters
+        // skip words with non-lowercase chars
         bool allLower = true;
         for (char c : w) {
             if (c < 'a' || c > 'z') {
@@ -40,22 +40,20 @@ std::set<std::string> wordle(
         }
         if (!allLower) continue;
 
+        // Check fixed positions and build letter freq
+        vector<int> wordFreq(26, 0);
         bool match = true;
-        // Check fixed positions
         for (size_t i = 0; i < n; ++i) {
-            if (in[i] != '-' && in[i] != w[i]) {
+            char wch = w[i];
+            if (in[i] != '-' && in[i] != wch) {
                 match = false;
                 break;
             }
+            wordFreq[wch - 'a']++;
         }
         if (!match) continue;
 
-        // Count letters in candidate word
-        vector<int> wordFreq(26, 0);
-        for (char c : w) {
-            wordFreq[c - 'a']++;
-        }
-        // Ensure we have all floating letters
+        // Verify all floating letters are covered
         for (int letter = 0; letter < 26; ++letter) {
             if (wordFreq[letter] < floatFreq[letter]) {
                 match = false;
