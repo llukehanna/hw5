@@ -1,63 +1,65 @@
 #ifndef RECCHECK
-// For debugging
 #include <iostream>
 #endif
 
 #include "wordle.h"
 #include "dict-eng.h"
-#include <set>
-#include <string>
+using namespace std;
 
-// Recursive helper:
-// - in:      the pattern string with '-' and fixed letters
-// - pos:     current index we are filling
-// - current: working copy of the word being built
-// - floating: letters that still must appear somewhere
-// - dict:    the full dictionary
-// - results: set to collect valid words
-static void helper(const std::string& in,
-                   int pos,
-                   std::string& current,
-                   std::string floating,
-                   const std::set<std::string>& dict,
-                   std::set<std::string>& results)
-{
-    int n = in.size();
-    if (pos == n) {
-        // once fully built, only accept if all floating letters used
-        if (floating.empty() && dict.find(current) != dict.end()) {
-            results.insert(current);
-        }
+// prototype for our recursive helper
+static void wordleHelper(const string& pattern,
+                         int index,
+                         string& current,
+                         string floating,
+                         const set<string>& dict,
+                         set<string>& result);
+
+set<string> wordle(const string& in,
+                   const string& floating,
+                   const set<string>& dict) {
+    set<string> result;
+    string current;
+    wordleHelper(in, 0, current, floating, dict, result);
+    return result;
+}
+
+static void wordleHelper(const string& pattern,
+                         int index,
+                         string& current,
+                         string floating,
+                         const set<string>& dict,
+                         set<string>& result) {
+    // base case: full‐length candidate built
+    if (index == (int)pattern.size()) {
+        if (floating.empty() && dict.count(current))
+            result.insert(current);
         return;
     }
 
-    if (in[pos] != '-') {
-        // fixed letter, just advance
-        helper(in, pos + 1, current, floating, dict, results);
-    } else {
-        // try every letter 'a'..'z' in this blank
-        for (char c = 'a'; c <= 'z'; ++c) {
-            current[pos] = c;
-            // if this letter satisfies one of the floating ones, remove it
-            std::string nextFloating = floating;
-            auto it = nextFloating.find(c);
-            if (it != std::string::npos) {
-                nextFloating.erase(it, 1);
-            }
-            helper(in, pos + 1, current, nextFloating, dict, results);
-        }
-        // restore (not strictly necessary since next call will overwrite)
-        current[pos] = '-';
+    // fixed letter: just use it
+    if (pattern[index] != '-') {
+        current.push_back(pattern[index]);
+        wordleHelper(pattern, index + 1, current, floating, dict, result);
+        current.pop_back();
+        return;
     }
-}
 
-std::set<std::string> wordle(
-    const std::string& in,
-    const std::string& floating,
-    const std::set<std::string>& dict)
-{
-    std::set<std::string> results;
-    std::string current = in;     // start with the pattern
-    helper(in, 0, current, floating, dict, results);
-    return results;
+    // blank spot: first try placing each floating letter
+    for (int i = 0; i < (int)floating.size(); ++i) {
+        char c = floating[i];
+        current.push_back(c);
+        string rem = floating;
+        rem.erase(i, 1);          // consume that floating letter
+        wordleHelper(pattern, index + 1, current, rem, dict, result);
+        current.pop_back();
+    }
+
+    // then try every other letter a–z that isn't still needed by floating
+    for (char c = 'a'; c <= 'z'; ++c) {
+        if (floating.find(c) != string::npos) 
+            continue;
+        current.push_back(c);
+        wordleHelper(pattern, index + 1, current, floating, dict, result);
+        current.pop_back();
+    }
 }
